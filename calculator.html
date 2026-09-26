@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Calculator</title>
+<style>
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #2b2b2b;
+    font-family: 'Segoe UI', Arial, sans-serif;
+  }
+
+  .calculator {
+    background: #0d0d0d;
+    border-radius: 40px;
+    padding: 30px 25px;
+    box-shadow: 0 20px 45px rgba(0, 0, 0, 0.5);
+    width: 300px;
+  }
+
+  h1 {
+    color: #ffffff;
+    text-align: center;
+    font-size: 1.3rem;
+    margin: 0 0 20px 0;
+  }
+
+  .display {
+    background: #1c1c1c;
+    color: #ffffff;
+    border-radius: 12px;
+    padding: 20px 15px;
+    margin-bottom: 20px;
+    text-align: right;
+    font-size: 2.2rem;
+    min-height: 60px;
+    overflow-x: auto;
+    word-wrap: break-word;
+  }
+
+  .buttons {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+
+  button {
+    border: none;
+    border-radius: 50%;
+    aspect-ratio: 1 / 1;
+    font-size: 1.2rem;
+    cursor: pointer;
+    background: #4d4d4d;
+    color: #fff;
+    transition: transform 0.1s ease, background 0.2s ease, filter 0.2s ease;
+  }
+
+  button:hover {
+    filter: brightness(1.15);
+  }
+
+  button:active {
+    transform: scale(0.92);
+  }
+
+  .light {
+    background: #a5a5a5;
+    color: #1a1a1a;
+  }
+
+  .operator {
+    background: #ff9f0a;
+  }
+
+  .equals {
+    background: #ff9f0a;
+  }
+
+  .zero {
+    grid-column: span 2;
+    border-radius: 30px;
+    aspect-ratio: unset;
+  }
+
+  .dot {
+    border-radius: 50%;
+  }
+</style>
+</head>
+<body>
+
+<div class="calculator">
+  <h1>Calculator</h1>
+  <div class="display" id="display">0</div>
+  <div class="buttons">
+    <button class="light" onclick="clearDisplay()">AC</button>
+    <button class="light" onclick="deleteLast()">DEL</button>
+    <button class="light" onclick="appendOperator('%')">%</button>
+    <button class="operator" onclick="appendOperator('/')">÷</button>
+
+    <button onclick="appendNumber('7')">7</button>
+    <button onclick="appendNumber('8')">8</button>
+    <button onclick="appendNumber('9')">9</button>
+    <button class="operator" onclick="appendOperator('*')">×</button>
+
+    <button onclick="appendNumber('4')">4</button>
+    <button onclick="appendNumber('5')">5</button>
+    <button onclick="appendNumber('6')">6</button>
+    <button class="operator" onclick="appendOperator('-')">−</button>
+
+    <button onclick="appendNumber('1')">1</button>
+    <button onclick="appendNumber('2')">2</button>
+    <button onclick="appendNumber('3')">3</button>
+    <button class="operator" onclick="appendOperator('+')">+</button>
+
+    <button class="zero" onclick="appendNumber('0')">0</button>
+    <button class="dot" onclick="appendNumber('.')">.</button>
+    <button class="equals" onclick="calculateResult()">=</button>
+  </div>
+</div>
+
+<script>
+  // Holds the full expression being built, shown on the display
+  let expression = '';
+
+  // Tracks whether the display is currently showing an error message
+  let hasError = false;
+
+  // Reference to the display element, cached once for performance
+  const display = document.getElementById('display');
+
+  // Refreshes the display text to match the current expression
+  function updateDisplay() {
+    display.textContent = expression === '' ? '0' : expression;
+  }
+
+  // Appends a digit or decimal point to the expression
+  // Resets the expression first if the display is showing an error
+  function appendNumber(num) {
+    if (hasError) {
+      expression = '';
+      hasError = false;
+    }
+
+    // Prevent multiple decimal points in the same number segment
+    const parts = expression.split(/[\+\-\*\/%]/);
+    const currentSegment = parts[parts.length - 1];
+    if (num === '.' && currentSegment.includes('.')) {
+      return;
+    }
+
+    expression += num;
+    updateDisplay();
+  }
+
+  // Appends an operator (+, -, *, /, %) to the expression
+  // Prevents two operators from being placed back-to-back
+  function appendOperator(op) {
+    if (hasError) {
+      expression = '';
+      hasError = false;
+    }
+
+    if (expression === '') {
+      // Allow a leading minus sign for negative numbers, block other operators
+      if (op === '-') {
+        expression += op;
+        updateDisplay();
+      }
+      return;
+    }
+
+    const lastChar = expression[expression.length - 1];
+    if ('+-*/%'.includes(lastChar)) {
+      // Replace the last operator instead of stacking a new one
+      expression = expression.slice(0, -1) + op;
+    } else {
+      expression += op;
+    }
+    updateDisplay();
+  }
+
+  // Clears the expression completely, resetting the calculator
+  function clearDisplay() {
+    expression = '';
+    hasError = false;
+    updateDisplay();
+  }
+
+  // Removes the last character from the expression (backspace)
+  function deleteLast() {
+    if (hasError) {
+      clearDisplay();
+      return;
+    }
+    expression = expression.slice(0, -1);
+    updateDisplay();
+  }
+
+  // Evaluates the current expression and shows the result
+  // Handles invalid input and division by zero gracefully
+  function calculateResult() {
+    if (expression === '') {
+      return;
+    }
+
+    // Block evaluation if the expression ends in an operator
+    const lastChar = expression[expression.length - 1];
+    if ('+-*/%'.includes(lastChar)) {
+      showError('Incomplete expression');
+      return;
+    }
+
+    // Guard against division by zero before evaluating,
+    // since JavaScript would otherwise return Infinity/NaN silently
+    if (/\/\s*0(?!\.)|\/\s*0\.0*(?!\d)/.test(expression)) {
+      showError('Cannot divide by 0');
+      return;
+    }
+
+    try {
+      // Only allow digits, operators, and decimal points for safety
+      if (!/^[0-9+\-*/%.]+$/.test(expression)) {
+        throw new Error('Invalid characters');
+      }
+
+      // eslint-disable-next-line no-eval
+      const result = Function('"use strict"; return (' + expression + ')')();
+
+      if (!isFinite(result) || isNaN(result)) {
+        showError('Invalid operation');
+        return;
+      }
+
+      expression = String(result);
+      updateDisplay();
+    } catch (err) {
+      showError('Invalid expression');
+    }
+  }
+
+  // Displays an error message on screen and flags error state
+  function showError(message) {
+    display.textContent = message;
+    hasError = true;
+  }
+
+  // Support keyboard input for a more natural calculator feel
+  document.addEventListener('keydown', function (e) {
+    if (e.key >= '0' && e.key <= '9') {
+      appendNumber(e.key);
+    } else if (e.key === '.') {
+      appendNumber('.');
+    } else if ('+-*/%'.includes(e.key)) {
+      appendOperator(e.key);
+    } else if (e.key === 'Enter' || e.key === '=') {
+      calculateResult();
+    } else if (e.key === 'Backspace') {
+      deleteLast();
+    } else if (e.key === 'Escape') {
+      clearDisplay();
+    }
+  });
+</script>
+
+</body>
+</html>

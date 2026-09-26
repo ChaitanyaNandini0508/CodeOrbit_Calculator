@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aperture — Guided Night Sky Tours</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant:ital,wght@0,400;0,600;1,500&family=Manrope:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --void:#0B0E1A; --void-2:#12172A; --panel:#161C33;
+    --paper:#EDEBE3; --dim:rgba(237,235,227,0.6); --line:rgba(237,235,227,0.12);
+    --gold:#D9B44A; --violet:#8B7FE8; --r:3px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--void); color:var(--paper);
+    font-family:'Manrope',sans-serif; line-height:1.65;
+    overflow-x:hidden;
+  }
+  a{color:inherit;text-decoration:none;}
+  .wrap{max-width:1160px;margin:0 auto;padding:0 32px;}
+  h1,h2,h3{font-family:'Cormorant',serif;font-weight:600;letter-spacing:0.005em;}
+  .eyebrow{font-family:'Space Mono',monospace;font-size:0.7rem;letter-spacing:0.18em;text-transform:uppercase;color:var(--gold);}
+
+  /* starfield background */
+  .stars{
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+    background-image:
+      radial-gradient(1.5px 1.5px at 10% 20%, rgba(237,235,227,0.5) 50%, transparent 51%),
+      radial-gradient(1px 1px at 30% 65%, rgba(237,235,227,0.35) 50%, transparent 51%),
+      radial-gradient(2px 2px at 50% 15%, rgba(237,235,227,0.6) 50%, transparent 51%),
+      radial-gradient(1px 1px at 70% 80%, rgba(237,235,227,0.3) 50%, transparent 51%),
+      radial-gradient(1.5px 1.5px at 85% 35%, rgba(237,235,227,0.5) 50%, transparent 51%),
+      radial-gradient(1px 1px at 92% 60%, rgba(237,235,227,0.35) 50%, transparent 51%),
+      radial-gradient(1.5px 1.5px at 15% 85%, rgba(237,235,227,0.4) 50%, transparent 51%),
+      radial-gradient(1px 1px at 60% 45%, rgba(237,235,227,0.3) 50%, transparent 51%);
+    background-repeat:repeat; background-size:600px 600px;
+  }
+
+  header, main, footer { position:relative; z-index:1; }
+
+  /* Header */
+  header{position:sticky;top:0;z-index:50;background:rgba(11,14,26,0.82);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);}
+  .nav{display:flex;align-items:center;justify-content:space-between;padding:22px 0;}
+  .logo{display:flex;align-items:center;gap:10px;font-family:'Cormorant',serif;font-size:1.4rem;font-weight:600;letter-spacing:0.02em;}
+  .logo-mark{width:26px;height:26px;border:1px solid var(--gold);border-radius:50%;position:relative;flex-shrink:0;}
+  .logo-mark::after{content:'';position:absolute;top:50%;left:50%;width:5px;height:5px;background:var(--gold);border-radius:50%;transform:translate(-50%,-50%);}
+  .nav-links{display:flex;gap:36px;font-size:0.9rem;}
+  .nav-links a{opacity:0.75;transition:opacity .2s;}
+  .nav-links a:hover{opacity:1;}
+  .nav-cta{border:1px solid var(--gold);color:var(--gold);padding:9px 20px;border-radius:var(--r);font-size:0.85rem;font-weight:600;transition:background .2s,color .2s;}
+  .nav-cta:hover{background:var(--gold);color:var(--void);}
+  .nav-toggle{display:none;flex-direction:column;gap:5px;background:none;border:none;cursor:pointer;padding:6px;}
+  .nav-toggle span{width:22px;height:2px;background:var(--paper);}
+
+  /* Hero — full bleed centered */
+  .hero{padding:120px 0 100px;text-align:center;}
+  .hero .eyebrow{margin-bottom:20px;}
+  .hero h1{font-size:clamp(2.6rem,6vw,4.4rem);line-height:1.05;max-width:16ch;margin:0 auto 24px;}
+  .hero h1 em{font-style:italic;color:var(--gold);}
+  .hero p.lede{max-width:52ch;margin:0 auto 38px;color:var(--dim);font-size:1.08rem;}
+  .hero-actions{display:flex;justify-content:center;gap:24px;flex-wrap:wrap;}
+  .btn-primary{background:var(--gold);color:var(--void);padding:15px 30px;border-radius:var(--r);font-weight:700;font-size:0.95rem;transition:transform .2s;}
+  .btn-primary:hover{transform:translateY(-2px);}
+  .btn-ghost{font-family:'Space Mono',monospace;font-size:0.82rem;border-bottom:1px solid var(--violet);padding-bottom:3px;color:var(--violet);}
+
+  /* constellation svg */
+  .constellation{max-width:760px;margin:70px auto 0;}
+  .constellation svg{width:100%;height:auto;}
+
+  /* Alternating info blocks */
+  section{padding:100px 0;}
+  .block{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center;}
+  .block.reverse .block-visual{order:2;}
+  .block-copy .eyebrow{margin-bottom:16px;display:block;}
+  .block-copy h2{font-size:clamp(1.9rem,3.2vw,2.6rem);margin-bottom:18px;}
+  .block-copy p{color:var(--dim);font-size:0.98rem;max-width:44ch;}
+
+  .moon-row{display:flex;gap:18px;flex-wrap:wrap;margin-top:8px;}
+  .moon{width:64px;text-align:center;}
+  .moon-disc{width:52px;height:52px;border-radius:50%;background:var(--panel);border:1px solid var(--line);margin:0 auto 8px;position:relative;overflow:hidden;}
+  .moon-disc::after{content:'';position:absolute;top:0;right:0;bottom:0;background:var(--gold);}
+  .moon-disc.m1::after{width:0%;}
+  .moon-disc.m2::after{width:35%;}
+  .moon-disc.m3::after{width:65%;}
+  .moon-disc.m4::after{width:100%;}
+  .moon span{font-family:'Space Mono',monospace;font-size:0.62rem;color:var(--dim);}
+
+  .visual-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:28px;}
+  .coord-line{display:flex;justify-content:space-between;font-family:'Space Mono',monospace;font-size:0.78rem;padding:10px 0;border-bottom:1px solid var(--line);color:var(--dim);}
+  .coord-line:last-child{border-bottom:none;}
+  .coord-line strong{color:var(--paper);font-weight:400;}
+
+  /* Timeline */
+  .timeline-wrap{border-top:1px solid var(--line);border-bottom:1px solid var(--line);}
+  .timeline{display:flex;flex-direction:column;}
+  .t-row{display:grid;grid-template-columns:120px 1fr;gap:28px;padding:26px 0;border-top:1px solid var(--line);}
+  .t-row:first-child{border-top:none;}
+  .t-time{font-family:'Space Mono',monospace;font-size:0.85rem;color:var(--gold);padding-top:4px;}
+  .t-body h3{font-size:1.25rem;margin-bottom:6px;}
+  .t-body p{color:var(--dim);font-size:0.9rem;max-width:56ch;}
+
+  /* Ticket plans */
+  .tickets{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;}
+  .ticket{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);position:relative;padding:28px 24px;}
+  .ticket::before,.ticket::after{content:'';position:absolute;width:16px;height:16px;background:var(--void);border-radius:50%;top:50%;transform:translateY(-50%);}
+  .ticket::before{left:-8px;}
+  .ticket::after{right:-8px;}
+  .ticket.featured{border-color:var(--gold);}
+  .ticket .eyebrow{margin-bottom:10px;display:block;}
+  .ticket .price{font-family:'Cormorant',serif;font-size:2.1rem;font-weight:600;margin-bottom:8px;}
+  .ticket .price span{font-family:'Manrope',sans-serif;font-size:0.82rem;font-weight:400;color:var(--dim);}
+  .ticket ul{list-style:none;margin:18px 0 24px;border-top:1px dashed var(--line);padding-top:16px;}
+  .ticket li{font-size:0.85rem;color:var(--dim);padding:6px 0;}
+  .ticket-btn{display:block;text-align:center;padding:12px;border-radius:var(--r);border:1px solid var(--violet);color:var(--violet);font-weight:600;font-size:0.85rem;}
+  .ticket.featured .ticket-btn{background:var(--gold);border-color:var(--gold);color:var(--void);}
+
+  /* Footer */
+  footer{padding:64px 0 40px;}
+  .footer-top{display:flex;justify-content:space-between;gap:40px;padding-bottom:40px;border-bottom:1px solid var(--line);flex-wrap:wrap;}
+  .footer-brand p{max-width:34ch;font-size:0.86rem;color:var(--dim);margin-top:14px;}
+  .footer-cols{display:flex;gap:60px;}
+  .footer-col h4{font-family:'Space Mono',monospace;font-size:0.68rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--violet);margin-bottom:14px;}
+  .footer-col a{display:block;font-size:0.88rem;color:var(--dim);padding:5px 0;}
+  .footer-col a:hover{color:var(--gold);}
+  .footer-bottom{display:flex;justify-content:space-between;padding-top:26px;font-family:'Space Mono',monospace;font-size:0.7rem;color:var(--dim);flex-wrap:wrap;gap:10px;}
+
+  /* Booking modal */
+  .modal-overlay{
+    display:none; position:fixed; inset:0; z-index:200;
+    background:rgba(11,14,26,0.78); backdrop-filter:blur(6px);
+    align-items:center; justify-content:center; padding:24px;
+  }
+  .modal-overlay.open{display:flex;}
+  .modal{
+    background:var(--void-2); border:1px solid var(--line); border-radius:6px;
+    width:100%; max-width:460px; max-height:88vh; overflow-y:auto;
+    padding:32px; position:relative;
+  }
+  .modal-close{
+    position:absolute; top:18px; right:18px; background:none; border:none;
+    color:var(--dim); font-size:1.3rem; line-height:1; cursor:pointer; padding:4px;
+  }
+  .modal-close:hover{color:var(--paper);}
+  .step-dots{display:flex; gap:8px; margin-bottom:26px;}
+  .step-dot{flex:1; height:3px; background:var(--line); border-radius:2px;}
+  .step-dot.active{background:var(--gold);}
+  .modal h3{font-size:1.4rem; margin-bottom:4px;}
+  .step-sub{font-family:'Space Mono',monospace; font-size:0.68rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--violet); margin-bottom:6px;}
+  .date-option{
+    display:flex; justify-content:space-between; align-items:center; gap:14px;
+    padding:14px 16px; border:1px solid var(--line); border-radius:4px;
+    margin-bottom:10px; cursor:pointer; transition:border-color .2s, background .2s;
+  }
+  .date-option:hover{border-color:var(--violet);}
+  .date-option.selected{border-color:var(--gold); background:rgba(217,180,74,0.08);}
+  .d-date{font-family:'Cormorant',serif; font-weight:600; font-size:1.05rem;}
+  .d-meta{font-family:'Space Mono',monospace; font-size:0.68rem; color:var(--dim);}
+  .guest-stepper{display:flex; justify-content:space-between; align-items:center; margin-top:16px; padding-top:16px; border-top:1px dashed var(--line);}
+  .stepper-btn{
+    width:30px; height:30px; border-radius:50%; border:1px solid var(--violet); background:none;
+    color:var(--violet); font-size:1rem; cursor:pointer; line-height:1;
+  }
+  .stepper-btn:hover{background:var(--violet); color:var(--void);}
+  .form-group{margin-bottom:16px;}
+  .form-group label{display:block; font-family:'Space Mono',monospace; font-size:0.7rem; letter-spacing:0.06em; text-transform:uppercase; color:var(--dim); margin-bottom:8px;}
+  .form-group input{
+    width:100%; background:var(--panel); border:1px solid var(--line); border-radius:4px;
+    padding:12px 14px; color:var(--paper); font-family:'Manrope',sans-serif; font-size:0.92rem;
+  }
+  .form-group input:focus{outline:none; border-color:var(--gold);}
+  .modal-error{display:none; color:#E8837A; font-family:'Space Mono',monospace; font-size:0.72rem; margin-top:12px;}
+  .modal-footer{display:flex; justify-content:space-between; align-items:center; margin-top:26px; gap:16px;}
+  .btn-back{background:none; border:1px solid var(--line); color:var(--dim); padding:12px 20px; border-radius:var(--r); font-weight:600; font-size:0.85rem; cursor:pointer;}
+  .btn-back:hover{border-color:var(--violet); color:var(--paper);}
+  .btn-next{background:var(--gold); border:none; color:var(--void); padding:12px 24px; border-radius:var(--r); font-weight:700; font-size:0.85rem; cursor:pointer;}
+  .confirm-tick{
+    width:56px; height:56px; border-radius:50%; border:1.5px solid var(--gold); color:var(--gold);
+    display:flex; align-items:center; justify-content:center; font-size:1.5rem; margin:0 auto;
+  }
+
+  @media (max-width:900px){
+    .block, .block.reverse .block-visual{grid-template-columns:1fr;order:0;}
+    .block{grid-template-columns:1fr;gap:32px;}
+    .tickets{grid-template-columns:1fr;}
+  }
+  @media (max-width:640px){
+    .wrap{padding:0 20px;}
+    .nav-links{display:none;}
+    .nav-toggle{display:flex;}
+    .hero{padding:90px 0 70px;}
+    .t-row{grid-template-columns:1fr;gap:8px;}
+    .footer-top{flex-direction:column;}
+    .footer-cols{flex-wrap:wrap;gap:28px 44px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="stars"></div>
+
+<header>
+  <div class="wrap nav">
+    <div class="logo"><span class="logo-mark"></span>Aperture</div>
+    <nav class="nav-links">
+      <a href="#sky">Tonight's sky</a>
+      <a href="#schedule">Tours</a>
+      <a href="#tickets">Tickets</a>
+      <a href="#footer">Contact</a>
+    </nav>
+    <a href="#" class="nav-cta" onclick="openModal();return false;">Book a night</a>
+    <button class="nav-toggle" aria-label="Menu"><span></span><span></span><span></span></button>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="wrap">
+      <span class="eyebrow">Guided sessions · Dark-sky sites only</span>
+      <h1>Look up. We'll tell you <em>what</em> you're looking at.</h1>
+      <p class="lede">Small-group telescope tours led by working astronomers, held on moonless nights at three certified dark-sky sites within an hour of the city.</p>
+      <div class="hero-actions">
+        <a href="#" class="btn-primary" onclick="openModal();return false;">Reserve a spot</a>
+        <a href="#sky" class="btn-ghost">Check tonight's forecast →</a>
+      </div>
+      <div class="constellation">
+        <svg viewBox="0 0 600 220" xmlns="http://www.w3.org/2000/svg">
+          <g stroke="rgba(237,235,227,0.3)" stroke-width="1">
+            <line x1="60" y1="150" x2="150" y2="70"/>
+            <line x1="150" y1="70" x2="260" y2="100"/>
+            <line x1="260" y1="100" x2="360" y2="50"/>
+            <line x1="360" y1="50" x2="470" y2="90"/>
+            <line x1="470" y1="90" x2="540" y2="160"/>
+            <line x1="260" y1="100" x2="300" y2="180"/>
+          </g>
+          <g fill="#D9B44A">
+            <circle cx="60" cy="150" r="3.5"/>
+            <circle cx="150" cy="70" r="4.5"/>
+            <circle cx="260" cy="100" r="3.5"/>
+            <circle cx="360" cy="50" r="5"/>
+            <circle cx="470" cy="90" r="3.5"/>
+            <circle cx="540" cy="160" r="4"/>
+            <circle cx="300" cy="180" r="3"/>
+          </g>
+          <text x="360" y="34" fill="#EDEBE3" font-family="Space Mono, monospace" font-size="11" text-anchor="middle" opacity="0.7">Deneb</text>
+          <text x="150" y="56" fill="#EDEBE3" font-family="Space Mono, monospace" font-size="11" text-anchor="middle" opacity="0.7">Vega</text>
+          <text x="540" y="146" fill="#EDEBE3" font-family="Space Mono, monospace" font-size="11" text-anchor="middle" opacity="0.7">Altair</text>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <section id="sky">
+    <div class="wrap">
+      <div class="block">
+        <div class="block-copy">
+          <span class="eyebrow">Tonight's conditions</span>
+          <h2>We only run on nights worth the drive.</h2>
+          <p>Every session is confirmed the afternoon of, once cloud cover, humidity, and moon illumination all clear our threshold. No show, full refund — automatically, no request needed.</p>
+        </div>
+        <div class="block-visual">
+          <div class="visual-card">
+            <div class="coord-line"><span>Site</span><strong>Redtail Ridge, Site 2</strong></div>
+            <div class="coord-line"><span>Cloud cover</span><strong>4%</strong></div>
+            <div class="coord-line"><span>Moon illumination</span><strong>12%</strong></div>
+            <div class="coord-line"><span>Bortle class</span><strong>Class 3</strong></div>
+            <div class="coord-line"><span>Status</span><strong style="color:var(--gold);">Confirmed for tonight</strong></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="block reverse">
+        <div class="block-copy">
+          <span class="eyebrow">Plan around the moon</span>
+          <h2>We time tours to the darkest skies each month.</h2>
+          <p>Deep-sky sessions cluster around the new moon, when faint nebulae and galaxies are easiest to find. Lunar-viewing nights run separately, closer to the full moon.</p>
+          <div class="moon-row">
+            <div class="moon"><div class="moon-disc m1"></div><span>New</span></div>
+            <div class="moon"><div class="moon-disc m2"></div><span>Waxing</span></div>
+            <div class="moon"><div class="moon-disc m3"></div><span>Gibbous</span></div>
+            <div class="moon"><div class="moon-disc m4"></div><span>Full</span></div>
+          </div>
+        </div>
+        <div class="block-visual">
+          <div class="visual-card">
+            <div class="coord-line"><span>Next new moon</span><strong>Oct 10</strong></div>
+            <div class="coord-line"><span>Deep-sky tour</span><strong>Oct 8–12</strong></div>
+            <div class="coord-line"><span>Next full moon</span><strong>Oct 26</strong></div>
+            <div class="coord-line"><span>Lunar tour</span><strong>Oct 24–27</strong></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="schedule" class="timeline-wrap">
+    <div class="wrap">
+      <div class="section-head" style="max-width:620px;margin-bottom:52px;">
+        <span class="eyebrow">A night with us</span>
+        <h2 style="font-size:clamp(1.85rem,2.8vw,2.4rem);">How a session actually runs.</h2>
+      </div>
+      <div class="timeline">
+        <div class="t-row">
+          <div class="t-time">7:30 PM</div>
+          <div class="t-body"><h3>Arrival &amp; setup</h3><p>Meet your guide, get a red-light headlamp, and let your eyes begin adjusting to the dark.</p></div>
+        </div>
+        <div class="t-row">
+          <div class="t-time">8:15 PM</div>
+          <div class="t-body"><h3>Naked-eye orientation</h3><p>Learn to read the sky before the optics come out — bright stars, visible planets, the ecliptic line.</p></div>
+        </div>
+        <div class="t-row">
+          <div class="t-time">9:00 PM</div>
+          <div class="t-body"><h3>Telescope viewing</h3><p>Rotate through three telescopes, each aimed at a different target for that night's conditions.</p></div>
+        </div>
+        <div class="t-row">
+          <div class="t-time">10:30 PM</div>
+          <div class="t-body"><h3>Wrap-up</h3><p>Warm drinks, a star chart to take home, and next month's dates for anyone who wants to come back.</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="tickets">
+    <div class="wrap">
+      <div class="section-head" style="max-width:620px;margin-bottom:52px;">
+        <span class="eyebrow">Reserve a spot</span>
+        <h2 style="font-size:clamp(1.85rem,2.8vw,2.4rem);">Groups stay small on purpose.</h2>
+      </div>
+      <div class="tickets">
+        <div class="ticket">
+          <span class="eyebrow" style="color:var(--violet);">Solo</span>
+          <div class="price">$45<span>/person</span></div>
+          <p style="font-size:0.85rem;color:var(--dim);">One seat at any scheduled tour.</p>
+          <ul><li>2.5 hour guided session</li><li>Shared telescope rotation</li><li>Star chart included</li></ul>
+          <a href="#" class="ticket-btn" onclick="openModal('solo');return false;">Book solo seat</a>
+        </div>
+        <div class="ticket featured">
+          <span class="eyebrow" style="color:var(--gold);">Pair</span>
+          <div class="price">$80<span>/two</span></div>
+          <p style="font-size:0.85rem;color:var(--dim);">Two seats, side by side, same telescope group.</p>
+          <ul><li>2.5 hour guided session</li><li>Priority telescope time</li><li>Star charts for both</li></ul>
+          <a href="#" class="ticket-btn" onclick="openModal('pair');return false;">Book for two</a>
+        </div>
+        <div class="ticket">
+          <span class="eyebrow" style="color:var(--violet);">Private group</span>
+          <div class="price">$320<span>/up to 8</span></div>
+          <p style="font-size:0.85rem;color:var(--dim);">A dedicated guide and site, just for your group.</p>
+          <ul><li>3 hour private session</li><li>Choose your own site</li><li>Custom target list</li></ul>
+          <a href="#" class="ticket-btn" onclick="openModal('private');return false;">Enquire</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer id="footer">
+  <div class="wrap">
+    <div class="footer-top">
+      <div class="footer-brand">
+        <div class="logo"><span class="logo-mark"></span>Aperture</div>
+        <p>Guided telescope tours at certified dark-sky sites, led by working astronomers.</p>
+      </div>
+      <div class="footer-cols">
+        <div class="footer-col">
+          <h4>Explore</h4>
+          <a href="#sky">Tonight's sky</a>
+          <a href="#schedule">How it runs</a>
+          <a href="#tickets">Tickets</a>
+        </div>
+        <div class="footer-col">
+          <h4>Support</h4>
+          <a href="#">Site directions</a>
+          <a href="#">Weather policy</a>
+          <a href="#">Contact us</a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 Aperture Night Tours.</span>
+      <span>Booked under moonless skies.</span>
+    </div>
+  </div>
+</footer>
+
+<div class="modal-overlay" id="bookingOverlay" onclick="if(event.target===this) closeModal();">
+  <div class="modal">
+    <button type="button" class="modal-close" onclick="closeModal()" aria-label="Close">×</button>
+    <div class="step-dots" id="stepDots"></div>
+    <div id="modalBody"></div>
+    <div class="modal-footer" id="modalFooter"></div>
+  </div>
+</div>
+
+<script>
+  const DATES = [
+    { id:'d1', day:'Wed', date:'Oct 8',  site:'Redtail Ridge, Site 2',    note:'Window opens' },
+    { id:'d2', day:'Thu', date:'Oct 9',  site:'Redtail Ridge, Site 2',    note:'0% moon illumination' },
+    { id:'d3', day:'Fri', date:'Oct 10', site:'Pinehill Overlook',        note:'New moon — best night' },
+    { id:'d4', day:'Sat', date:'Oct 11', site:'Redtail Ridge, Site 2',    note:'Window closes' }
+  ];
+
+  const TICKETS = {
+    solo:    { label:'Solo',          price:45,  unit:'/person',  guests:1, fixedGuests:true,  desc:'One seat, shared telescope rotation.' },
+    pair:    { label:'Pair',          price:80,  unit:'/two',     guests:2, fixedGuests:true,  desc:'Two seats, side by side.' },
+    private: { label:'Private group', price:320, unit:'/up to 8', guests:2, fixedGuests:false, min:1, max:8, desc:'Dedicated guide, your own site.' }
+  };
+
+  let state = {};
+
+  function resetState(ticketKey){
+    state = {
+      step: 1,
+      dateId: null,
+      ticketKey: ticketKey || null,
+      guests: ticketKey ? TICKETS[ticketKey].guests : 1,
+      name:'', email:'', phone:'', ref:''
+    };
+  }
+
+  function openModal(ticketKey){
+    resetState(ticketKey);
+    document.getElementById('bookingOverlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+    render();
+  }
+
+  function closeModal(){
+    document.getElementById('bookingOverlay').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  function selectDate(id){ state.dateId = id; render(); }
+
+  function selectTicket(key){
+    state.ticketKey = key;
+    state.guests = TICKETS[key].guests;
+    render();
+  }
+
+  function changeGuests(delta){
+    const t = TICKETS[state.ticketKey];
+    if(!t || t.fixedGuests) return;
+    state.guests = Math.max(t.min, Math.min(t.max, state.guests + delta));
+    render();
+  }
+
+  function updateField(field, value){ state[field] = value; }
+
+  function canProceed(){
+    if(state.step===1) return !!state.dateId;
+    if(state.step===2) return !!state.ticketKey;
+    if(state.step===3) return state.name.trim().length>0 && /\S+@\S+\.\S+/.test(state.email);
+    return true;
+  }
+
+  function showError(){
+    const err = document.getElementById('modalError');
+    if(err){ err.style.display='block'; }
+  }
+
+  function nextStep(){
+    if(!canProceed()){ showError(); return; }
+    if(state.step < 4){ state.step++; render(); }
+    else { state.ref = 'APT-' + Math.random().toString(36).slice(2,7).toUpperCase(); state.step = 5; render(); }
+  }
+
+  function prevStep(){
+    if(state.step > 1){ state.step--; render(); }
+  }
+
+  function downloadICS(){
+    const d = DATES.find(x=>x.id===state.dateId);
+    const t = TICKETS[state.ticketKey];
+    const lines = [
+      'BEGIN:VCALENDAR','VERSION:2.0','BEGIN:VEVENT',
+      'SUMMARY:Aperture Night Sky Tour \u2014 ' + t.label,
+      'LOCATION:' + d.site,
+      'DESCRIPTION:Booking reference ' + state.ref,
+      'END:VEVENT','END:VCALENDAR'
+    ];
+    const blob = new Blob([lines.join('\r\n')], { type:'text/calendar' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'aperture-tour.ics'; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function render(){
+    const dots = document.getElementById('stepDots');
+    if(state.step <= 4){
+      dots.style.display = 'flex';
+      dots.innerHTML = [1,2,3,4].map(n => `<div class="step-dot ${n<=state.step?'active':''}"></div>`).join('');
+    } else {
+      dots.style.display = 'none';
+    }
+
+    const body = document.getElementById('modalBody');
+    const footer = document.getElementById('modalFooter');
+
+    if(state.step===1){
+      body.innerHTML = `
+        <div class="step-sub">Step 1 of 4 \u2014 Choose a night</div>
+        <h3>When would you like to come?</h3>
+        <div style="margin-top:18px;">
+          ${DATES.map(d => `
+            <div class="date-option ${state.dateId===d.id?'selected':''}" onclick="selectDate('${d.id}')">
+              <div>
+                <div class="d-date">${d.day}, ${d.date}</div>
+                <div class="d-meta">${d.site}</div>
+              </div>
+              <div class="d-meta" style="text-align:right;">${d.note}</div>
+            </div>`).join('')}
+        </div>
+        <div class="modal-error" id="modalError">Pick a date to continue.</div>`;
+    } else if(state.step===2){
+      body.innerHTML = `
+        <div class="step-sub">Step 2 of 4 \u2014 Choose your ticket</div>
+        <h3>How many stargazers?</h3>
+        <div style="margin-top:18px;">
+          ${Object.entries(TICKETS).map(([key,t]) => `
+            <div class="date-option ${state.ticketKey===key?'selected':''}" onclick="selectTicket('${key}')">
+              <div>
+                <div class="d-date">${t.label}</div>
+                <div class="d-meta">${t.desc}</div>
+              </div>
+              <div style="text-align:right;">
+                <div class="d-date">$${t.price}</div>
+                <div class="d-meta">${t.unit}</div>
+              </div>
+            </div>`).join('')}
+        </div>
+        ${state.ticketKey==='private' ? `
+          <div class="guest-stepper">
+            <span class="d-meta">Group size</span>
+            <div style="display:flex;align-items:center;gap:14px;">
+              <button type="button" class="stepper-btn" onclick="changeGuests(-1)">\u2212</button>
+              <span style="font-family:'Cormorant',serif;font-size:1.2rem;">${state.guests}</span>
+              <button type="button" class="stepper-btn" onclick="changeGuests(1)">+</button>
+            </div>
+          </div>` : ''}
+        <div class="modal-error" id="modalError">Pick a ticket to continue.</div>`;
+    } else if(state.step===3){
+      body.innerHTML = `
+        <div class="step-sub">Step 3 of 4 \u2014 Your details</div>
+        <h3>Who should we expect?</h3>
+        <div class="form-group" style="margin-top:18px;">
+          <label>Full name</label>
+          <input type="text" value="${state.name}" oninput="updateField('name', this.value)" placeholder="e.g. Priya Sharma">
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" value="${state.email}" oninput="updateField('email', this.value)" placeholder="you@email.com">
+        </div>
+        <div class="form-group">
+          <label>Phone (optional)</label>
+          <input type="tel" value="${state.phone}" oninput="updateField('phone', this.value)" placeholder="+1 555 000 0000">
+        </div>
+        <div class="modal-error" id="modalError">Name and a valid email are required.</div>`;
+    } else if(state.step===4){
+      const d = DATES.find(x=>x.id===state.dateId);
+      const t = TICKETS[state.ticketKey];
+      body.innerHTML = `
+        <div class="step-sub">Step 4 of 4 \u2014 Review</div>
+        <h3>Confirm your booking</h3>
+        <div class="visual-card" style="margin-top:18px;">
+          <div class="coord-line"><span>Date</span><strong>${d.day}, ${d.date}</strong></div>
+          <div class="coord-line"><span>Site</span><strong>${d.site}</strong></div>
+          <div class="coord-line"><span>Ticket</span><strong>${t.label}${state.ticketKey==='private' ? ' \u00b7 '+state.guests+' guests' : ''}</strong></div>
+          <div class="coord-line"><span>Contact</span><strong>${state.name}</strong></div>
+          <div class="coord-line"><span>Email</span><strong>${state.email}</strong></div>
+          <div class="coord-line"><span>Total</span><strong style="color:var(--gold);">$${t.price}</strong></div>
+        </div>`;
+    } else if(state.step===5){
+      const d = DATES.find(x=>x.id===state.dateId);
+      const t = TICKETS[state.ticketKey];
+      body.innerHTML = `
+        <div style="text-align:center;padding:6px 0;">
+          <div class="confirm-tick">\u2713</div>
+          <h3 style="margin-top:16px;">You're booked in.</h3>
+          <div class="step-sub" style="margin-top:8px;">Booking reference</div>
+          <div style="font-family:'Space Mono',monospace;font-size:1.25rem;letter-spacing:0.06em;color:var(--gold);margin:6px 0 20px;">${state.ref}</div>
+        </div>
+        <div class="visual-card">
+          <div class="coord-line"><span>Date</span><strong>${d.day}, ${d.date}</strong></div>
+          <div class="coord-line"><span>Site</span><strong>${d.site}</strong></div>
+          <div class="coord-line"><span>Ticket</span><strong>${t.label}</strong></div>
+          <div class="coord-line"><span>Confirmation sent to</span><strong>${state.email}</strong></div>
+        </div>`;
+    }
+
+    if(state.step <= 4){
+      footer.innerHTML = `
+        ${state.step>1 ? `<button type="button" class="btn-back" onclick="prevStep()">Back</button>` : `<span></span>`}
+        <button type="button" class="btn-next" onclick="nextStep()">${state.step<4 ? 'Continue' : 'Confirm booking'}</button>`;
+    } else {
+      footer.innerHTML = `
+        <button type="button" class="btn-back" onclick="downloadICS()">Add to calendar</button>
+        <button type="button" class="btn-next" onclick="closeModal()">Done</button>`;
+    }
+  }
+
+  document.addEventListener('keydown', e => { if(e.key === 'Escape') closeModal(); });
+</script>
+
+</body>
+</html>
